@@ -1,0 +1,96 @@
+<!DOCTYPE html>
+<html lang="en">
+	<head>
+		<title>Oculus Sky</title>
+		<meta charset="utf-8">
+	<script src="../inc/shim/Base64.js" type="text/javascript"></script>
+	<script src="../inc/shim/Base64binary.js" type="text/javascript"></script>
+	<script src="../inc/shim/WebAudioAPI.js" type="text/javascript"></script>
+	<script src="../inc/shim/WebMIDIAPI.js" type="text/javascript"></script>
+	<script src="../js/midi/player.js" type="text/javascript"></script>
+	<script src="../js/midi/audioDetect.js" type="text/javascript"></script>
+	<script src="../js/midi/gm.js" type="text/javascript"></script>
+	<script src="../js/midi/loader.js" type="text/javascript"></script>
+	<script src="../js/midi/plugin.audiotag.js" type="text/javascript"></script>
+	<script src="../js/midi/plugin.webaudio.js" type="text/javascript"></script>
+	<script src="../js/midi/plugin.webmidi.js" type="text/javascript"></script>
+	<script src="../js/util/dom_request_xhr.js" type="text/javascript"></script>
+	<script src="../js/util/dom_request_script.js" type="text/javascript"></script>
+	<script src="../inc/jasmid/stream.js"></script>
+	<script src="../inc/jasmid/midifile.js"></script>
+	<script src="../inc/jasmid/replayer.js"></script>
+	<script src="../js/util/dom_request_xhr.js" type="text/javascript"></script>
+	<script src="../js/util/dom_request_script.js" type="text/javascript"></script>
+	<script id="vertShader" type="shader">
+	varying vec2 vUv;
+	uniform float time;
+	uniform vec3 normalPlaneVec;
+	uniform vec3 startPoint;
+	uniform float length;
+	void main() {
+	    vUv = uv;
+
+	    float dist = distance(startPoint, position);
+	    vec3 newPosition = position;
+	    if(dist < length && dist > 2.0){
+	    	newPosition = position + normalPlaneVec *5.0 * cos(time/20.0)*sin(time/50.0*sin(time*time/25.0) + 50.0 *  dist);
+	    }
+	    
+	    gl_Position = projectionMatrix *
+	                  modelViewMatrix * vec4(newPosition, 1.0 );
+	}
+	</script>
+	<script id="fragShader" type="shader">
+	vec3 hsv2rgb(vec3 c)
+	{
+	    vec4 K = vec4(1.0, 2.0 / 3.0, 1.0 / 3.0, 3.0);
+	    vec3 p = abs(fract(c.xxx + K.xyz) * 6.0 - K.www);
+	    return c.z * mix(K.xxx, clamp(p - K.xxx, 0.0, 1.0), c.y);
+	}
+	precision highp float;
+	varying vec2 vUv;
+	uniform float color;
+	uniform float startFadingTime;
+	uniform float time;
+	uniform float length;
+	//uniform sampler2D texture;
+	void main(void) {
+		float alpha = 1.0;
+		if(startFadingTime > 1.0){
+			alpha = 1.0 - (time - startFadingTime)/1000.0;
+			alpha = alpha * alpha;
+		}
+
+		//vec4 fColor = texture2D(texture, vUv);
+		//float hue = fColor.x*length/240.0;
+		//hue = mod(hue + time/10000.0,1.0);
+	    //gl_FragColor = vec4(hsv2rgb(vec3(hue,0.4,0.9)), fColor[3]*alpha);
+
+	    float hue = color*length/240.0;
+		hue = mod(hue + time/10000.0,1.0);
+		float alphaFromDist = (1.0 -2.0 * abs(0.5 - vUv.y));
+	    gl_FragColor = vec4(hsv2rgb(vec3(hue,0.4,0.9)), alphaFromDist*alpha);
+	}
+	</script>
+		<style>
+			body {
+				margin: 0px;
+				background-color: #000000;
+				overflow: hidden;
+			}
+		</style>
+	</head>
+	<body>
+		<script src="dat.gui.js"></script>
+		<script src="stats.min.js"></script>
+		<script src="three.js"></script>
+		<script src="PointerLockControls.js"></script>
+		<script src="bsc_json_long.js"></script>
+		<script src="bower_components/threejs/examples/js/controls/VRControls.js"></script>
+		<script src="bower_components/threejs/examples/js/effects/VREffect.js"></script>
+		<script src="bower_components/webvr-polyfill/build/webvr-polyfill.js"></script>
+		<script src="build/webvr-manager.js"></script>
+		<script src="main.js"></script>
+
+	</body>
+</html>
