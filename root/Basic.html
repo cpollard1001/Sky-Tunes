@@ -1,0 +1,84 @@
+<!DOCTYPE html>
+<html xmlns = "http://www.w3.org/1999/xhtml">
+<head>
+	<meta http-equiv="content-type" content="text/html; charset=utf-8" />
+	<!-- polyfill -->
+	<script src="../inc/shim/Base64.js" type="text/javascript"></script>
+	<script src="../inc/shim/Base64binary.js" type="text/javascript"></script>
+	<script src="../inc/shim/WebAudioAPI.js" type="text/javascript"></script>
+	<!-- midi.js package -->
+	<script src="../js/midi/audioDetect.js" type="text/javascript"></script>
+	<script src="../js/midi/gm.js" type="text/javascript"></script>
+	<script src="../js/midi/loader.js" type="text/javascript"></script>
+	<script src="../js/midi/plugin.audiotag.js" type="text/javascript"></script>
+	<script src="../js/midi/plugin.webaudio.js" type="text/javascript"></script>
+	<script src="../js/midi/plugin.webmidi.js" type="text/javascript"></script>
+	<!-- utils -->
+	<script src="../js/util/dom_request_xhr.js" type="text/javascript"></script>
+	<script src="../js/util/dom_request_script.js" type="text/javascript"></script>
+</head>
+<body>
+<script type="text/javascript">
+
+window.onload = function () {
+	MIDI.loadPlugin({
+		soundfontUrl: "./soundfont/",
+		instrument: "acoustic_grand_piano",
+		onprogress: function(state, progress) {
+			console.log(state, progress);
+		},
+		onsuccess: function() {
+
+			// play the note
+			//MIDI.programChange(0, 5); // set channel 0 to crystal piano
+			MIDI.setVolume(0, 127);
+			//MIDI.noteOn(0, note, velocity, delay);
+			//MIDI.noteOff(0, note, delay + 2);
+			if (navigator.requestMIDIAccess)
+				navigator.requestMIDIAccess().then( onMIDIInit, function(){});
+		}
+	});
+	var midiAccess=null;	// the MIDIAccess object.
+	var delay = 0; // play one note every quarter second
+	var note = 50; // the MIDI note
+	var velocity = 127; // how hard the note hits
+	
+	function hookUpMIDIInput() {
+	    var inputs=midiAccess.inputs.values();
+	    midiAccess.inputs.forEach( function(entry) {
+	    	console.log(entry)
+	    	entry.onmidimessage = MIDIMessageEventHandler;
+	    });
+	}
+	function onMIDIInit(midi) {
+		midiAccess = midi;
+
+		hookUpMIDIInput();
+		midiAccess.onstatechange=hookUpMIDIInput;
+	}
+	function MIDIMessageEventHandler(event) {
+		// Mask off the lower nibble (MIDI channel, which we don't care about)
+		switch (event.data[0] & 0xf0) {
+			case 0x90:
+				if (event.data[2]!=0) {  // if velocity != 0, this is a note-on message
+					noteOn(event.data[1], event.data[2]);
+					return;
+				}
+				// if velocity == 0, fall thru: it's a note-off.  MIDI's weird, ya'll.
+			case 0x80:
+				noteOff(event.data[1]);
+				return;
+		}
+	}
+	function noteOn(noteNumber, velocity) {
+		MIDI.noteOn(0, noteNumber, velocity, delay);
+	}
+
+	function noteOff(noteNumber) {
+		MIDI.noteOff(0, noteNumber, delay);
+	}
+};
+
+</script>
+</body>
+</html>
