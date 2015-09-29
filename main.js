@@ -94,7 +94,7 @@ function init() {
 
     starGroup = new THREE.Group();
 
-    var starTexture = THREE.ImageUtils.loadTexture( "star.png" );
+    var starTexture = THREE.ImageUtils.loadTexture( "assets/star.png" );
     for(var i = 0; i < starList.length; i++){
         if(starList[i].Vmag < pruneThreshHold){
             var dist = distance;
@@ -129,20 +129,20 @@ function init() {
         lastActive[i] = Math.floor(Math.random()*starGroup.children.length);
     }
     scene.add(starGroup)
-    lightningTexture = THREE.ImageUtils.loadTexture('lightning.png');
+    lightningTexture = THREE.ImageUtils.loadTexture('assets/lightning.png');
     lightningTexture.wrapS = lightningTexture.wrapT = THREE.MirroredRepeatWrapping;
 
-    var texture = THREE.ImageUtils.loadTexture('moonTexture.png');
+    var texture = THREE.ImageUtils.loadTexture('assets/moonTexture.png');
     texture.wrapS = THREE.RepeatWrapping;
     texture.wrapT = THREE.RepeatWrapping;
 
-    var bmap = THREE.ImageUtils.loadTexture('moonBump.png');
+    var bmap = THREE.ImageUtils.loadTexture('assets/moonBump.png');
     bmap.wrapS = THREE.RepeatWrapping;
     bmap.wrapT = THREE.RepeatWrapping;
 
     var loader = new THREE.JSONLoader();
     loader.load(
-        'surface.json',
+        'assets/moon.json',
         function ( geometry, materials ) {
             var material = new THREE.MeshPhongMaterial( {map: texture,side: THREE.DoubleSide,  bumpMap:bmap, bumpScale: .05 } );
             var surface = new THREE.Mesh( geometry, material );
@@ -152,10 +152,10 @@ function init() {
             surface.receiveShadow = true
         }
     );
-    var flagTexture = THREE.ImageUtils.loadTexture('hackgt.jpg');
+    var flagTexture = THREE.ImageUtils.loadTexture('assets/hackgt.jpg');
     var flagLoader = new THREE.JSONLoader();
     flagLoader.load(
-        'flag.json',
+        'assets/flag.json',
         function ( geometry, materials ) {
             var material = new THREE.MeshPhongMaterial( {map: flagTexture,side: THREE.DoubleSide } );
             var flag = new THREE.Mesh( geometry, material );
@@ -169,9 +169,9 @@ function init() {
         }
     );
     var loader = new THREE.BufferGeometryLoader();
-    var wreckTexture = THREE.ImageUtils.loadTexture('wreck.png');
+    var wreckTexture = THREE.ImageUtils.loadTexture('assets/wreck.png');
     loader.load(
-        'wreck.json',
+        'assets/wreck.json',
         function ( geometry ) {
             var material = new THREE.MeshPhongMaterial( { map: wreckTexture, transparent:true } );
             var object = new THREE.Mesh( geometry, material );
@@ -314,7 +314,7 @@ function createBolt(startStar, endStar){
 
 
 MIDI.loadPlugin({
-    soundfontUrl: "./soundfont/",
+    soundfontUrl: ".assets/soundfonts/",
     instrument: "acoustic_grand_piano",
     onprogress: function(state, progress) {
         console.log(state, progress);
