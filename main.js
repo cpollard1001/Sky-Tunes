@@ -5,7 +5,7 @@ var stats = new Stats();
 stats.domElement.style.position = 'absolute';
 stats.domElement.style.left = '0px';
 stats.domElement.style.top = '0px';
-//document.body.appendChild( stats.domElement )
+document.body.appendChild( stats.domElement )
 
 var numActive = 25;
 
@@ -57,7 +57,7 @@ var gui = new dat.GUI();
 gui.add(options,"Keyboard Input")
 //gui.add(options, "Select Song", ["Danse Macabre","Mountain King","Sea at Spring","Toccata And Fugue"]);
 //gui.add(options, "Play")
-var starGroup
+var stars = [];
 var active = [];
 var lastActive = [], lastActiveTime = [];
 var boltCache = [];
@@ -69,9 +69,7 @@ for(var i = 0; i < numActive; i++){
 
 }
 var time, lightningTexture
-
-var pruneThreshHold = 5; // don't even show stars dimmer than this
-var lightningThreshold = 5; // stars dimmer than this don't conduct lightning
+var starMesh;
 var splitThresh = 500; // milliseconds greater will randomly choose new location
 var aLength = distance/12; // distance of note a
 
@@ -80,55 +78,86 @@ var fadeFrac = .95; // how fast the bolts fade
 var chordThresh = 100; // milliseconds to consider chord
 
 var segments = 7; //segments of lightning
-var lightningWidth = .3;
+var lightningWidth = .3 * distance / 100;
 init();
 animate();
 
 function init() {
 
-    camera = new THREE.PerspectiveCamera( 60, window.innerWidth / window.innerHeight, 1, distance + 10 );
+    camera = new THREE.PerspectiveCamera( 60, window.innerWidth / window.innerHeight, 1, distance + 100 );
     scene = new THREE.Scene();
 
     controls = new THREE.VRControls( camera );
     controls.enabled = true;
 
-    starGroup = new THREE.Group();
-
     var starTexture = THREE.ImageUtils.loadTexture( "assets/star.png" );
+    var starMaterial = new THREE.ShaderMaterial({
+            transparent:true,
+            uniforms: {
+                texture:{type:'t', value: starTexture}
+            },
+            vertexShader: document.
+                          getElementById('skyVertShader').text,
+            fragmentShader: document.
+                          getElementById('skyFragShader').text
+        });
+    var starGeometry = new THREE.BufferGeometry();
+    var vertices = new Float32Array(starList.length*18);
+    var uvs = new Float32Array(starList.length*12);
+    var vColors = new Float32Array(starList.length*6)
+    starGeometry.addAttribute( 'position', new THREE.BufferAttribute( vertices, 3 ) );
+    starGeometry.addAttribute( 'uv', new THREE.BufferAttribute( uvs, 2 ) );
+    starGeometry.addAttribute( 'vertColor', new THREE.BufferAttribute( vColors, 1 ) );
+    var vertexPositions = [
+        new THREE.Vector3(-0.5, -0.5,  -distance),
+        new THREE.Vector3( 0.5, -0.5,  -distance),
+        new THREE.Vector3( 0.5,  0.5,  -distance),
+
+        new THREE.Vector3( 0.5,  0.5,  -distance),
+        new THREE.Vector3(-0.5,  0.5,  -distance),
+        new THREE.Vector3(-0.5, -0.5,  -distance)
+    ];
+
+    var up = new THREE.Vector3(0,1,0);
+    var normal = new THREE.Vector3(0,0,1);
     for(var i = 0; i < starList.length; i++){
-        if(starList[i].Vmag < pruneThreshHold){
-            var dist = distance;
-            var theta = starList[i].RAh*15/180*Math.PI;
-            var phi = starList[i].DEd/180*Math.PI;
-            var x = dist * Math.cos(phi) * Math.cos(theta);
-            var y = dist * Math.cos(phi) * Math.sin(theta);
-            var z = dist * Math.sin(phi);
-            var relStrength = (7.96 - starList[i].Vmag)/9.42;
-            var col = new THREE.Color( relStrength+.1, relStrength+.1, relStrength+.1 );
-            if(starList[i].Vmag < lightningThreshold){
-                //col = new THREE.Color( relStrength, relStrength, .5 );
-            }
-            var material = new THREE.SpriteMaterial( { transparent:true, map: starTexture, color: col } );
-            var sprite = new THREE.Sprite( material );
-            sprite.position.set(x, y, z);
-            sprite.position.applyAxisAngle (new THREE.Vector3(1,0,0), -Math.PI/4)
-            sprite.scale.multiplyScalar(relStrength * 3 *distance/100)
-            if(sprite.position.y > -10){
-                starGroup.add( sprite );
-                if(starList[i].Vmag < lightningThreshold){
-                    starGroup.add(sprite)
-                }else{
-                    scene.add(sprite)
-                }
-            }
-            
+        var star = starList[i];
+
+        var theta = starList[i].ra * 15 / 180 * Math.PI;
+        var phi = starList[i].dec / 180 * Math.PI;
+
+        var side = new THREE.Vector3(1,0,0).applyAxisAngle(up, theta);
+        var size = (7.96 - star.mag)/5*distance/100;
+        var randomRotation = Math.random()*2*Math.PI;
+        var color = star.col[0] + star.col[1] * 256.0 + star.col[2] * 256.0 * 256.0;
+        for ( var j = 0; j < 6; j++ )
+        {
+            var vertex = new THREE.Vector3().copy(vertexPositions[j]);
+            vertex.x *= size;
+            vertex.y *= size;
+            vertex.applyAxisAngle(normal, randomRotation);
+            vertex.applyAxisAngle(up, theta);
+            vertex.applyAxisAngle(side, phi);
+
+            vertices[ i*18 + j*3 + 0 ] = vertex.x;
+            vertices[ i*18 + j*3 + 1 ] = vertex.y;
+            vertices[ i*18 + j*3 + 2 ] = vertex.z;
+
+            uvs[ i*12 + j*2 + 0] = vertexPositions[j].x + 0.5;
+            uvs[ i*12 + j*2 + 1] = vertexPositions[j].y + 0.5;
+
+            vColors[ i*6 +j] = color;
         }
+
+        var position = new THREE.Vector3(0, 0, -distance);
+        position.applyAxisAngle(up, theta);
+        position.applyAxisAngle(side, phi);
+        stars.push( position );
     }
-    for(var i = 0; i < numActive; i++){
-        active[i] = Math.floor(Math.random()*starGroup.children.length);
-        lastActive[i] = Math.floor(Math.random()*starGroup.children.length);
-    }
-    scene.add(starGroup)
+    starMesh = new THREE.Mesh(starGeometry, starMaterial);
+    scene.add(starMesh)
+    starMesh.rotation.z = -Math.PI/4
+
     lightningTexture = THREE.ImageUtils.loadTexture('assets/lightning.png');
     lightningTexture.wrapS = lightningTexture.wrapT = THREE.MirroredRepeatWrapping;
 
@@ -208,7 +237,7 @@ function init() {
     renderer = new THREE.WebGLRenderer();
     renderer.setPixelRatio( window.devicePixelRatio );
     renderer.setSize( window.innerWidth, window.innerHeight );
-    renderer.shadowMapEnabled = true;
+    renderer.shadowMap.enabled = true;
     effect = new THREE.VREffect(renderer);
     effect.setSize(window.innerWidth, window.innerHeight);
     manager = new WebVRManager(renderer, effect);
@@ -247,7 +276,7 @@ function animate(timestamp) {
             }
         }
     }
-    //stats.update()
+    stats.update()
     manager.render(scene, camera, timestamp);
 
     requestAnimationFrame( animate );
@@ -257,8 +286,8 @@ function animate(timestamp) {
 function findStarAtDistance(star, d){
     var closestIndex = 0;
     var closestDistance = Infinity
-    for(var i = 0; i < starGroup.children.length; i++){
-        var dist = new THREE.Vector3().subVectors(star.position, starGroup.children[i].position).length();
+    for(var i = 0; i < stars.length; i++){
+        var dist = new THREE.Vector3().subVectors(star, stars[i]).length();
         if(Math.abs(dist - d) < closestDistance){
             closestDistance = Math.abs(dist - d);
             closestIndex = i;
@@ -269,20 +298,20 @@ function findStarAtDistance(star, d){
 
 function createBolt(startStar, endStar){
 
-    var line = new THREE.Vector3().subVectors(startStar.position, endStar.position)
+    var line = new THREE.Vector3().subVectors(startStar, endStar)
     var length = line.length()
     line.normalize();
-    var viewVec = new THREE.Vector3().addVectors(startStar.position, endStar.position).multiplyScalar(.5).normalize();
+    var viewVec = new THREE.Vector3().addVectors(startStar, endStar).multiplyScalar(.5).normalize();
     var cross = line.cross(viewVec).multiplyScalar(lightningWidth);
 
     var geometry = new THREE.Geometry();
-    geometry.vertices.push(new THREE.Vector3().copy(startStar.position));
-    geometry.vertices.push(new THREE.Vector3().copy(startStar.position));
+    geometry.vertices.push(new THREE.Vector3().copy(startStar));
+    geometry.vertices.push(new THREE.Vector3().copy(startStar));
     geometry.vertices[0].add(cross);
     geometry.vertices[1].sub(cross);
     for(var i = 0; i < segments; i++){
-     var start = new THREE.Vector3().lerpVectors(startStar.position, endStar.position, i/segments)
-     var end = new THREE.Vector3().lerpVectors(startStar.position, endStar.position, (i + 1)/segments)
+     var start = new THREE.Vector3().lerpVectors(startStar, endStar, i/segments)
+     var end = new THREE.Vector3().lerpVectors(startStar, endStar, (i + 1)/segments)
      geometry.vertices.push(new THREE.Vector3().copy(end));
      geometry.vertices.push(new THREE.Vector3().copy(end));
      geometry.vertices[2 + i * 2].add(cross);
@@ -298,7 +327,7 @@ function createBolt(startStar, endStar){
                 color: {type: 'f', value: 1.0},
                 time: {type: 'f', value: time},
                 normalPlaneVec: {type: 'v3', value: cross},
-                startPoint: {type: 'v3', value: startStar.position},
+                startPoint: {type: 'v3', value: startStar},
                 length: {type: 'f', value: length},
                 startFadingTime: {type: 'f', value: 0},
                 //texture:{type:'t', value: lightningTexture}
@@ -308,13 +337,13 @@ function createBolt(startStar, endStar){
             fragmentShader: document.
                           getElementById('fragShader').text
         });
-    var line = new THREE.Mesh(geometry, material);
-    return line;
+    var lightning = new THREE.Mesh(geometry, material);
+    return lightning;
 }
 
 
 MIDI.loadPlugin({
-    soundfontUrl: ".assets/soundfonts/",
+    soundfontUrl: "assets/soundfonts/",
     instrument: "acoustic_grand_piano",
     onprogress: function(state, progress) {
         console.log(state, progress);
@@ -350,32 +379,40 @@ function MIDIMessageEventHandler(event) {
             return;
     }
 }
+function getRandomStarIndex(){
+    var found = false;
+    while(true){
+        var i = Math.floor(Math.random()* stars.length);
+        var currentPosition = new THREE.Vector3().copy(stars[i]).applyQuaternion(starMesh.quaternion);
+        if(currentPosition.y > -10){
+            return i;
+        }
+    }
+}
 function noteOn(noteNumber, velocity) {
     var length = aLength / Math.pow(1.059463,noteNumber - 69);
     if(boltCache[0][noteNumber.toString()] == undefined){
 
         for(var i = 0; i < numActive; i++){
             if(time - lastActiveTime[i] <  chordThresh){
-                var next = findStarAtDistance(starGroup.children[lastActive[i]], length)
-                var bolt = createBolt(starGroup.children[lastActive[i]], starGroup.children[next]);
+                var next = findStarAtDistance(stars[lastActive[i]], length)
+                var bolt = createBolt(stars[lastActive[i]], stars[next]);
                 active[i] = next
             }else{
                 if(time - lastActiveTime[i] > splitThresh){
-                    active[i] = Math.floor(Math.random()* starGroup.children.length)
+                    active[i] = getRandomStarIndex();
                 }
                 lastActiveTime[i] = time;
-                var next = findStarAtDistance(starGroup.children[active[i]], length)
-                var bolt = createBolt(starGroup.children[active[i]], starGroup.children[next]);
+                var next = findStarAtDistance(stars[active[i]], length)
+                var bolt = createBolt(stars[active[i]], stars[next]);
                 lastActive[i] = active[i]
                 active[i] = next
             }
             scene.add(bolt)
-
              boltCache[i][noteNumber.toString()] = bolt;
         }
     }
     if(options["Keyboard Input"]){
-        console.log('a')
         MIDI.noteOn(0, noteNumber, velocity, 0);
     }
 }

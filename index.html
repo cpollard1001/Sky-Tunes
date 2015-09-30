@@ -10,6 +10,29 @@
 				overflow: hidden;
 			}
 		</style>
+		<script id="skyVertShader" type="shader">
+			varying vec2 vUv;
+			varying vec3 vColor;
+			attribute float vertColor;
+			void main() {
+				vUv = uv;
+				vColor.b = floor(vertColor / 256.0 / 256.0);
+    			vColor.g = floor((vertColor - vColor.b * 256.0 * 256.0) / 256.0);
+    			vColor.r = floor(vertColor - vColor.b * 256.0 * 256.0 - vColor.g * 256.0);
+    			vColor = (vColor / 256.0 + 1.0) * 0.5;
+			    gl_Position = projectionMatrix *
+			                  modelViewMatrix * vec4(position, 1.0 );
+			}
+		</script>
+		<script id="skyFragShader" type="shader">
+			uniform sampler2D texture;
+			varying vec2 vUv;
+			varying vec3 vColor;
+			void main(void) {
+				vec4 textCol = texture2D(texture, vUv);
+			    gl_FragColor = vec4(vColor, textCol[3]);//texture2D(texture, vUv);
+			}
+		</script>
 		<script id="vertShader" type="shader">
 			varying vec2 vUv;
 			uniform float time;
@@ -72,7 +95,6 @@
 		<script src="lib/shim/WebMIDIAPI.js"></script>
 		<script src="lib/MIDI.js" type="text/javascript"></script>
 		
-
 		<script src="lib/dat.gui.js"></script>
 		<script src="lib/stats.js"></script>
 		<script src="lib/three.js"></script>
@@ -82,7 +104,7 @@
 		<script src="lib/webvr-polyfill.js"></script>
 		<script src="lib/webvr-manager.js"></script>
 
-		<script src="assets/starlist.js"></script>
+		<script src="assets/starList.js"></script>
 		<script src="main.js"></script>
 	</body>
 </html>
